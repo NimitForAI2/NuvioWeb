@@ -11,11 +11,21 @@
 
   var OVERLAY_ID = "nuvio-boot-error";
   var SPLASH_ID = "nuvio-boot-splash";
-  // Full choreographed reveal runs ~3.5s. The splash always plays to the end of
-  // this sequence before it starts fading, even if the app becomes ready sooner
-  // (boot just finishes behind the splash). This is why a fast webapp boot on
-  // Samsung no longer cuts the animation off early.
-  var SPLASH_MIN_MS = 3500;
+  // Boot splash is structured in phases so it never looks frozen on weak 4K
+  // panels (e.g. Samsung M70H):
+  //   0 – WARMUP_MS         : quiet breathing glow while the WebView decodes the
+  //                           icon and paints the first app frame (cheap to render)
+  //   WARMUP_MS – ~+3s      : the cinematic reveal fires on a warmed-up GPU
+  // The splash may begin fading once the app is ready AND at least SPLASH_MIN_MS
+  // has elapsed (so a fast boot still shows a complete moment), and is always
+  // gone by SPLASH_MAX_MS regardless.
+  var SPLASH_WARMUP_MS = 4000; // quiet buffer before the reveal animation starts
+  // Floor must clear the END of the reveal, not just the warm-up: the reveal
+  // starts at ~4s and its last beat (signature rise) finishes ~6.7s, so fading
+  // may only begin at 6800ms. Otherwise a fast boot would cut the reveal off
+  // right as it starts — the exact problem on weak panels we're avoiding.
+  var SPLASH_MIN_MS = 6800;    // floor: earliest the splash may fade once ready
+  var SPLASH_MAX_MS = 8000;    // ceiling: hard cap, splash never outlives this
   var SPLASH_FADE_MS = 620;
   var COMPATIBILITY_INFO_TIMEOUT_MS = 1500;
   var DEFAULT_COMPATIBILITY_MESSAGES = {
@@ -76,6 +86,15 @@
       }
       var style = document.createElement("style");
       style.id = SPLASH_ID + "-style";
+      // Reveal beats are offset by the warm-up so the expensive animation only
+      // fires after assets have had time to decode. w = warm-up in seconds.
+      var w = SPLASH_WARMUP_MS / 1000;
+      var dLogo = (w + 0.05).toFixed(2) + "s";
+      var dBloom = (w + 0.15).toFixed(2) + "s";
+      var dBreathe = (w + 1.2).toFixed(2) + "s";
+      var dRim = (w + 1.0).toFixed(2) + "s";
+      var dSweep = (w + 0.95).toFixed(2) + "s";
+      var dSign = (w + 1.55).toFixed(2) + "s";
       style.textContent =
         "#" + SPLASH_ID + "{position:fixed;z-index:2147483646;left:0;top:0;width:100%;height:100%;" +
         "background:radial-gradient(130% 130% at 50% 42%,#12203a 0%,#0a1120 42%,#05080f 72%,#03060b 100%);" +
@@ -85,34 +104,43 @@
         // stage centers the mark; the glow blooms behind it
         "#" + SPLASH_ID + " .nuvio-splash-stage{position:relative;display:flex;" +
         "align-items:center;justify-content:center;}" +
-        // soft radial glow that blooms in then gently breathes
+        // WARM-UP glow: a low-cost breathing pulse that runs immediately during
+        // the buffer window, so the screen is alive (not frozen) before the reveal.
+        "#" + SPLASH_ID + " .nuvio-splash-warm{position:absolute;left:50%;top:50%;" +
+        "width:42vw;max-width:520px;height:42vw;max-height:520px;transform:translate(-50%,-50%);" +
+        "border-radius:50%;pointer-events:none;" +
+        "background:radial-gradient(circle,rgba(70,120,210,.20) 0%,rgba(50,90,180,.08) 45%,rgba(0,0,0,0) 70%);" +
+        "animation:nuvioWarm 2.4s ease-in-out 0s infinite;}" +
+        // REVEAL glow: blooms in after the warm-up, then gently breathes
         "#" + SPLASH_ID + " .nuvio-splash-glow{position:absolute;left:50%;top:50%;" +
         "width:60vw;max-width:720px;height:60vw;max-height:720px;transform:translate(-50%,-50%) scale(.6);" +
         "border-radius:50%;opacity:0;pointer-events:none;" +
         "background:radial-gradient(circle,rgba(88,150,255,.38) 0%,rgba(60,110,220,.16) 38%,rgba(0,0,0,0) 68%);" +
-        "animation:nuvioGlowBloom 1s ease .15s forwards,nuvioGlowBreathe 3.4s ease-in-out 1.2s infinite;}" +
+        "animation:nuvioGlowBloom 1s ease " + dBloom + " forwards,nuvioGlowBreathe 3.4s ease-in-out " + dBreathe + " infinite;}" +
         // logo wrapper clips the moving shine to the icon box
         "#" + SPLASH_ID + " .nuvio-splash-logo{position:relative;width:30vw;max-width:380px;" +
         "min-width:200px;overflow:hidden;border-radius:26px;opacity:0;transform:scale(.82);" +
         "box-shadow:0 24px 80px rgba(0,0,0,.55);" +
-        "animation:nuvioLogoReveal 1.05s cubic-bezier(.16,1,.3,1) .05s forwards;}" +
+        "animation:nuvioLogoReveal 1.05s cubic-bezier(.16,1,.3,1) " + dLogo + " forwards;}" +
         "#" + SPLASH_ID + " .nuvio-splash-logo img{display:block;width:100%;height:auto;}" +
         // rim-light that fades in along the icon edge after it settles
         "#" + SPLASH_ID + " .nuvio-splash-logo:after{content:'';position:absolute;inset:0;" +
         "border-radius:26px;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);" +
-        "opacity:0;animation:nuvioRim 1s ease 1s forwards;}" +
+        "opacity:0;animation:nuvioRim 1s ease " + dRim + " forwards;}" +
         // single deliberate diagonal sweep across the icon (one pass, not a loop)
         "#" + SPLASH_ID + " .nuvio-splash-shine{position:absolute;top:-25%;bottom:-25%;width:48%;" +
         "left:-70%;transform:skewX(-16deg);opacity:0;" +
         "background:linear-gradient(105deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.72) 50%,rgba(255,255,255,0) 100%);" +
-        "animation:nuvioSweep 1.35s cubic-bezier(.5,.02,.3,1) .95s forwards;}" +
+        "animation:nuvioSweep 1.35s cubic-bezier(.5,.02,.3,1) " + dSweep + " forwards;}" +
         // signature rises + tightens beneath the mark
         "#" + SPLASH_ID + " .nuvio-splash-sign{position:absolute;left:50%;bottom:12vh;transform:translate(-50%,14px);" +
         "font-family:-apple-system,'Segoe UI',Roboto,sans-serif;font-size:1.5vw;" +
         "letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.38);" +
         "font-weight:600;opacity:0;white-space:nowrap;" +
-        "animation:nuvioSignRise 1.1s cubic-bezier(.16,1,.3,1) 1.55s forwards;}" +
+        "animation:nuvioSignRise 1.1s cubic-bezier(.16,1,.3,1) " + dSign + " forwards;}" +
         "#" + SPLASH_ID + " .nuvio-splash-sign b{color:rgba(255,255,255,.72);font-weight:700;}" +
+        "@keyframes nuvioWarm{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(.96);}" +
+        "50%{opacity:.9;transform:translate(-50%,-50%) scale(1.04);}}" +
         "@keyframes nuvioLogoReveal{0%{opacity:0;transform:scale(.82);}" +
         "60%{opacity:1;transform:scale(1.03);}100%{opacity:1;transform:scale(1);}}" +
         "@keyframes nuvioGlowBloom{0%{opacity:0;transform:translate(-50%,-50%) scale(.6);}" +
@@ -128,12 +156,14 @@
       splash.id = SPLASH_ID;
       splash.setAttribute("role", "img");
       splash.setAttribute("aria-label", "Nuvio");
-      // The real app icon reveals in, a glow blooms behind it, one shine sweeps
-      // across, then the signature rises. Plain <img> (no CSS mask) so it renders
-      // on older Tizen WebViews too. If the image is missing the wrapper simply
-      // shows the dark background + glow — never a broken image.
+      // The warm-up glow keeps the screen alive during the asset buffer; then the
+      // real app icon reveals in, a glow blooms, one shine sweeps, the signature
+      // rises. Plain <img> (no CSS mask) so it renders on older Tizen WebViews
+      // too. If the image is missing the wrapper simply shows the dark background
+      // + glow — never a broken image.
       splash.innerHTML =
         '<div class="nuvio-splash-stage">' +
+        '<div class="nuvio-splash-warm"></div>' +
         '<div class="nuvio-splash-glow"></div>' +
         '<div class="nuvio-splash-logo">' +
         '<img src="assets/images/tizenIcon.png" alt="Nuvio" ' +
@@ -155,9 +185,10 @@
       if (!splash) {
         return;
       }
-      // Always let the full reveal sequence finish before fading, no matter how
-      // fast the app became ready. Boot completing early just means the app is
-      // waiting behind the splash — the animation still plays to the end.
+      // Enforce the floor so a fast boot still shows a complete moment: the
+      // splash won't fade until at least SPLASH_MIN_MS has elapsed. This is
+      // called by guard.ready() (app ready), the window-load net, and the
+      // SPLASH_MAX_MS ceiling — whichever comes first past the floor wins.
       var elapsed = Date.now() - (splashShownAt || 0);
       var wait = Math.max(0, SPLASH_MIN_MS - elapsed);
       window.setTimeout(function fadeSplash() {
@@ -785,8 +816,10 @@
   }
 
   // Safety nets so the splash ALWAYS clears even if the app never calls
-  // guard.ready(): dismiss shortly after window load, and enforce a hard
-  // maximum lifetime. The splash is cosmetic and must never trap the UI.
+  // guard.ready(): dismiss after window load, and enforce a hard maximum
+  // lifetime. hideSplash() itself holds the SPLASH_MIN_MS floor, so these nets
+  // can never cut the reveal short — they only ensure it eventually leaves.
+  // The splash is cosmetic and must never trap the UI.
   try {
     if (typeof window.addEventListener === "function") {
       window.addEventListener(
@@ -798,7 +831,7 @@
       );
     }
   } catch (ignored) {}
-  window.setTimeout(hideSplash, 8000);
+  window.setTimeout(hideSplash, SPLASH_MAX_MS);
 
   var previousOnError = window.onerror;
   window.onerror = function onBootError(message, source, line, column, error) {
