@@ -31,7 +31,7 @@
   var DEFAULT_COMPATIBILITY_MESSAGES = {
     unsupported_device_title: "TV not supported",
     unsupported_device_message:
-      "This TV does not meet the minimum requirements for this version of Nuvio TV.",
+      "This TV does not meet the minimum requirements for this version of Next.",
     unsupported_device_current_platform: "Current platform",
     unsupported_device_current_firmware: "Current firmware",
     unsupported_device_required_platform: "Required platform",
@@ -155,7 +155,7 @@
       var splash = document.createElement("div");
       splash.id = SPLASH_ID;
       splash.setAttribute("role", "img");
-      splash.setAttribute("aria-label", "Nuvio");
+      splash.setAttribute("aria-label", "Next");
       // The warm-up glow keeps the screen alive during the asset buffer; then the
       // real app icon reveals in, a glow blooms, one shine sweeps, the signature
       // rises. Plain <img> (no CSS mask) so it renders on older Tizen WebViews
@@ -166,7 +166,7 @@
         '<div class="nuvio-splash-warm"></div>' +
         '<div class="nuvio-splash-glow"></div>' +
         '<div class="nuvio-splash-logo">' +
-        '<img src="assets/images/tizenIcon.png" alt="Nuvio" ' +
+        '<img src="assets/images/tizenIcon.png" alt="Next" ' +
         'onerror="this.style.display=\'none\'" />' +
         '<div class="nuvio-splash-shine"></div>' +
         "</div>" +
@@ -445,7 +445,7 @@
 
     logo = document.createElement("img");
     logo.src = "assets/brand/app_logo_wordmark.png";
-    logo.alt = "Nuvio";
+    logo.alt = "Next";
     logo.style.cssText = "display:block;width:240px;max-width:38vw;height:auto;margin:0 auto 34px;";
 
     title = document.createElement("div");
@@ -711,7 +711,7 @@
 
     var title = document.createElement("div");
     title.style.cssText = "font-size:44px;line-height:1.15;font-weight:700;margin-bottom:22px;";
-    title.textContent = "Nuvio TV could not start";
+    title.textContent = "Next could not start";
 
     var description = document.createElement("div");
     description.style.cssText =

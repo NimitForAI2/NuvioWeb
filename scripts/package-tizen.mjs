@@ -16,7 +16,10 @@ const requireConfiguredRuntimeEnv = /^(1|true|yes|on)$/i.test(
   String(process.env.NUVIO_REQUIRE_LOCAL_PROPERTIES || "")
 );
 
-const appName = "Nuvio TV";
+// Display name only. The package/app ids below are intentionally left as the
+// working NuvioTV001 identity so the .wgt still installs and updates the same
+// app on the TV — renaming those is what breaks TizenBrew installs.
+const appName = "Next";
 const defaultTizenPackageId = "NuvioTV001";
 const defaultTizenAppId = "NuvioTV001.NuvioTV";
 const defaultWidgetUri = "https://nuvio.tv";
