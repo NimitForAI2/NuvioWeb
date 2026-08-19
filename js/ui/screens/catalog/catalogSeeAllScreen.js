@@ -16,6 +16,7 @@ import {
   renderTitleWatchedBadge
 } from "../../components/watchedTitleBadge.js";
 import { renderLoadingIndicator } from "../../components/loadingIndicator.js";
+import { resizeImageUrlForDisplay } from "../../../core/media/imageProxy.js";
 
 const POSTER_HOLD_DELAY_MS = 650;
 
@@ -53,6 +54,44 @@ function extractReleaseYear(item = {}) {
   }
 
   return "";
+}
+
+// Build the inner HTML for a single catalog card. Extracted so the initial
+// render and incremental append share exactly one markup path.
+function renderSeeAllCard(item, index, { layoutPrefs, watchedTitleIds, descriptor }) {
+  const displayPoster = item.poster ? resizeImageUrlForDisplay(item.poster, { kind: "poster" }) : "";
+  return `
+    <article class="seeall-card focusable"
+             data-action="openDetail"
+             data-item-id="${item.id || ""}"
+              data-item-type="${item.type || item.catalogType || descriptor.type || "movie"}"
+             data-item-title="${escapeHtml(item.name || "Untitled")}"
+              data-poster-src="${escapeHtml(item.poster || "")}"
+              data-backdrop-src="${escapeHtml(item.background || item.backdrop || "")}"
+              data-addon-base-url="${escapeHtml(descriptor.addonBaseUrl || item.addonBaseUrl || "")}"
+              data-addon-id="${escapeHtml(descriptor.addonId || item.addonId || "")}"
+              data-addon-name="${escapeHtml(descriptor.addonName || item.addonName || "")}"
+              data-catalog-type="${escapeHtml(descriptor.type || item.catalogType || "")}"
+              data-focus-key="item:${item.id || index}"
+              data-item-index="${index}">
+      <div class="seeall-card-poster-wrap">
+        ${
+          item.poster
+            ? `<img class="seeall-card-poster-image" src="${escapeHtml(displayPoster)}" alt="${escapeHtml(item.name || "content")}" loading="lazy" decoding="async" width="342" height="513" />`
+            : `<div class="seeall-card-poster placeholder"></div>`
+        }
+        ${isTitleItemWatched(item, watchedTitleIds) ? renderTitleWatchedBadge() : ""}
+      </div>
+      ${
+        layoutPrefs?.posterLabelsEnabled !== false
+          ? `
+        <div class="seeall-card-title">${escapeHtml(item.name || "Untitled")}</div>
+        <div class="seeall-card-year">${escapeHtml(extractReleaseYear(item))}</div>
+      `
+          : ""
+      }
+    </article>
+  `;
 }
 
 function groupNodesByOffsetTop(nodes = []) {
@@ -190,6 +229,7 @@ export const CatalogSeeAllScreen = {
     this.preserveViewportOnNextRender = false;
     this.savedScrollTop = 0;
     this.loadToken = (this.loadToken || 0) + 1;
+    this.renderedItemCount = 0;
     this.posterOptionsController = null;
     this.posterOptionsFocusKey = "";
     this.pendingPosterHoldTarget = null;
@@ -268,7 +308,47 @@ export const CatalogSeeAllScreen = {
     this.loading = false;
     this.pendingRestoreFocus = true;
     this.preserveViewportOnNextRender = Boolean(preserveViewport && addedCount > 0);
+    // PERF: when we're just paging in more items and keeping the viewport,
+    // append only the newly-added cards instead of rebuilding the entire grid.
+    // Rebuilding hundreds of <img> nodes mid-scroll is the main source of the
+    // stutter on weak Tizen sets. Fall back to a full render otherwise.
+    if (this.preserveViewportOnNextRender && addedCount > 0 && this.appendNewCards(addedCount)) {
+      return;
+    }
     this.render();
+  },
+
+  // Append the last `count` items as cards to the existing grid without
+  // touching the already-rendered nodes. Returns false if the grid isn't
+  // present yet (caller then does a full render).
+  appendNewCards(count) {
+    const grid = this.container?.querySelector(".seeall-grid");
+    if (!(grid instanceof HTMLElement) || !Array.isArray(this.items)) {
+      return false;
+    }
+    const startIndex = Math.max(0, this.items.length - count);
+    const context = {
+      layoutPrefs: this.layoutPrefs,
+      watchedTitleIds: this.watchedTitleIds,
+      descriptor: this.params || {}
+    };
+    const markup = this.items
+      .slice(startIndex)
+      .map((item, offset) => renderSeeAllCard(item, startIndex + offset, context))
+      .join("");
+    if (!markup) {
+      return false;
+    }
+    grid.insertAdjacentHTML("beforeend", markup);
+    this.renderedItemCount = this.items.length;
+    // Reindex focusables + rebuild the nav model so the new rows are reachable,
+    // but do NOT re-run innerHTML on the whole grid.
+    ScreenUtils.indexFocusables(this.container);
+    this.buildNavigationModel();
+    this.bindCardEvents();
+    this.pendingRestoreFocus = false;
+    this.preserveViewportOnNextRender = false;
+    return true;
   },
 
   captureViewState() {
@@ -594,44 +674,15 @@ export const CatalogSeeAllScreen = {
   render() {
     const descriptor = this.params || {};
     const title = descriptor.catalogName || "Catalog";
+    const context = {
+      layoutPrefs: this.layoutPrefs,
+      watchedTitleIds: this.watchedTitleIds,
+      descriptor
+    };
     const cards = this.items.length
-      ? this.items
-          .map(
-            (item, index) => `
-          <article class="seeall-card focusable"
-                   data-action="openDetail"
-                   data-item-id="${item.id || ""}"
-                    data-item-type="${item.type || item.catalogType || descriptor.type || "movie"}"
-                   data-item-title="${escapeHtml(item.name || "Untitled")}"
-                    data-poster-src="${escapeHtml(item.poster || "")}"
-                    data-backdrop-src="${escapeHtml(item.background || item.backdrop || "")}"
-                    data-addon-base-url="${escapeHtml(descriptor.addonBaseUrl || item.addonBaseUrl || "")}"
-                    data-addon-id="${escapeHtml(descriptor.addonId || item.addonId || "")}"
-                    data-addon-name="${escapeHtml(descriptor.addonName || item.addonName || "")}"
-                    data-catalog-type="${escapeHtml(descriptor.type || item.catalogType || "")}"
-                    data-focus-key="item:${item.id || index}"
-                    data-item-index="${index}">
-            <div class="seeall-card-poster-wrap">
-              ${
-                item.poster
-                  ? `<img class="seeall-card-poster-image" src="${escapeHtml(item.poster)}" alt="${escapeHtml(item.name || "content")}" loading="lazy" decoding="async" />`
-                  : `<div class="seeall-card-poster placeholder"></div>`
-              }
-              ${isTitleItemWatched(item, this.watchedTitleIds) ? renderTitleWatchedBadge() : ""}
-            </div>
-            ${
-              this.layoutPrefs?.posterLabelsEnabled !== false
-                ? `
-              <div class="seeall-card-title">${escapeHtml(item.name || "Untitled")}</div>
-              <div class="seeall-card-year">${escapeHtml(extractReleaseYear(item))}</div>
-            `
-                : ""
-            }
-          </article>
-        `
-          )
-          .join("")
+      ? this.items.map((item, index) => renderSeeAllCard(item, index, context)).join("")
       : `<div class="seeall-empty">${escapeHtml(t("catalog_see_all_empty_title", {}, "No items available"))}</div>`;
+    this.renderedItemCount = this.items.length;
 
     this.container.innerHTML = `
       <div class="seeall-shell">

@@ -10,6 +10,8 @@
   }
 
   var OVERLAY_ID = "nuvio-boot-error";
+  var SPLASH_ID = "nuvio-boot-splash";
+  var SPLASH_MIN_MS = 1400;
   var COMPATIBILITY_INFO_TIMEOUT_MS = 1500;
   var DEFAULT_COMPATIBILITY_MESSAGES = {
     unsupported_device_title: "TV not supported",
@@ -54,6 +56,88 @@
   ];
   var active = true;
   var lastStage = "Loading startup files";
+  var splashShownAt = 0;
+
+  // --- Boot splash: logo + accent shimmer sweep ------------------------------
+  // Shown instantly on launch, dismissed when the app calls guard.ready().
+  // Pure DOM/CSS; if anything here fails it must never block boot.
+  function showSplash() {
+    try {
+      if (!document.body || document.getElementById(SPLASH_ID)) {
+        return;
+      }
+      var style = document.createElement("style");
+      style.id = SPLASH_ID + "-style";
+      style.textContent =
+        "#" + SPLASH_ID + "{position:fixed;z-index:2147483646;left:0;top:0;width:100%;height:100%;" +
+        "background:radial-gradient(120% 120% at 50% 38%,#0f1a2a 0%,#070b12 60%,#04070c 100%);" +
+        "display:flex;align-items:center;justify-content:center;opacity:1;" +
+        "transition:opacity .55s ease;}" +
+        "#" + SPLASH_ID + ".nuvio-splash-hide{opacity:0;}" +
+        // logo wrapper clips the moving shine to the logo box
+        "#" + SPLASH_ID + " .nuvio-splash-logo{position:relative;width:34vw;max-width:420px;" +
+        "min-width:220px;overflow:hidden;border-radius:24px;}" +
+        "#" + SPLASH_ID + " .nuvio-splash-logo img{display:block;width:100%;height:auto;}" +
+        // diagonal shine sweeping across the logo
+        "#" + SPLASH_ID + " .nuvio-splash-shine{position:absolute;top:-20%;bottom:-20%;width:55%;" +
+        "left:-80%;transform:skewX(-18deg);" +
+        "background:linear-gradient(105deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.7) 50%,rgba(255,255,255,0) 100%);" +
+        "animation:nuvioSweep 1.7s cubic-bezier(.4,.05,.25,1) infinite;}" +
+        "@keyframes nuvioSweep{0%{left:-80%;}62%{left:130%;}100%{left:130%;}}" +
+        // subtle bottom-right signature
+        "#" + SPLASH_ID + " .nuvio-splash-sign{position:absolute;right:4.5vw;bottom:4vh;" +
+        "font-family:-apple-system,'Segoe UI',Roboto,sans-serif;font-size:1.35vw;" +
+        "letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.34);" +
+        "font-weight:600;opacity:0;animation:nuvioSignFade 1.1s ease .5s forwards;}" +
+        "#" + SPLASH_ID + " .nuvio-splash-sign b{color:rgba(255,255,255,.62);font-weight:700;}" +
+        "@keyframes nuvioSignFade{to{opacity:1;}}";
+      document.head.appendChild(style);
+
+      var splash = document.createElement("div");
+      splash.id = SPLASH_ID;
+      splash.setAttribute("role", "img");
+      splash.setAttribute("aria-label", "Nuvio");
+      // Show the real app icon and sweep a shine across it. Uses a plain <img>
+      // (no CSS mask) so it renders on older Tizen WebViews too. If the image
+      // is missing the wrapper simply shows the dark background — never broken.
+      splash.innerHTML =
+        '<div class="nuvio-splash-logo">' +
+        '<img src="assets/images/tizenIcon.png" alt="Nuvio" ' +
+        'onerror="this.style.display=\'none\'" />' +
+        '<div class="nuvio-splash-shine"></div>' +
+        "</div>" +
+        '<div class="nuvio-splash-sign">Built by <b>Nimit</b></div>';
+      document.body.appendChild(splash);
+      splashShownAt = Date.now();
+    } catch (ignored) {
+      // Splash is cosmetic; never let it break startup.
+    }
+  }
+
+  function hideSplash() {
+    try {
+      var splash = document.getElementById(SPLASH_ID);
+      if (!splash) {
+        return;
+      }
+      var elapsed = Date.now() - (splashShownAt || 0);
+      var wait = Math.max(0, SPLASH_MIN_MS - elapsed);
+      window.setTimeout(function fadeSplash() {
+        splash.className = "nuvio-splash-hide";
+        window.setTimeout(function removeSplash() {
+          if (splash && splash.parentNode) {
+            splash.parentNode.removeChild(splash);
+          }
+          var s = document.getElementById(SPLASH_ID + "-style");
+          if (s && s.parentNode) {
+            s.parentNode.removeChild(s);
+          }
+        }, 600);
+      }, wait);
+    } catch (ignored) {
+      // no-op
+    }
+  }
 
   function text(value) {
     if (value === undefined || value === null || value === "") {
@@ -541,6 +625,8 @@
       return;
     }
 
+    // A hard boot error supersedes the splash.
+    hideSplash();
     removeOverlay();
 
     var overlay = document.createElement("div");
@@ -638,6 +724,7 @@
 
     ready: function ready() {
       active = false;
+      hideSplash();
       removeOverlay();
     },
 
@@ -651,6 +738,29 @@
   };
 
   window.NuvioBootGuard = guard;
+
+  // Show the boot splash as early as possible.
+  if (document.body) {
+    showSplash();
+  } else if (typeof document.addEventListener === "function") {
+    document.addEventListener("DOMContentLoaded", showSplash, { once: true });
+  }
+
+  // Safety nets so the splash ALWAYS clears even if the app never calls
+  // guard.ready(): dismiss shortly after window load, and enforce a hard
+  // maximum lifetime. The splash is cosmetic and must never trap the UI.
+  try {
+    if (typeof window.addEventListener === "function") {
+      window.addEventListener(
+        "load",
+        function onWindowLoadedSplash() {
+          window.setTimeout(hideSplash, 900);
+        },
+        { once: true }
+      );
+    }
+  } catch (ignored) {}
+  window.setTimeout(hideSplash, 8000);
 
   var previousOnError = window.onerror;
   window.onerror = function onBootError(message, source, line, column, error) {

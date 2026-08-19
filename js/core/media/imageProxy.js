@@ -161,6 +161,49 @@ export function proxifyImageUrl(value = "", options = {}) {
   return `${baseUrl}${WEBOS_IMAGE_PROXY_PATH}?url=${encoded}`;
 }
 
+// --- Poster downsizing (Tizen/weak-GPU perf) --------------------------------
+// Full-resolution posters/backdrops force the TV's WebView to decode large
+// images, which stutters catalog grids on monitor-class Samsung sets. When a
+// provider URL embeds a resizable width token, rewrite it to a card-sized
+// variant so far less pixel data is decoded. Purely a URL rewrite; if the
+// pattern is unknown the original URL is returned unchanged.
+const POSTER_TARGET_WIDTH = 342; // TMDB "w342" — good on a 1080p card grid
+const BACKDROP_TARGET_WIDTH = 780; // TMDB "w780" — landscape backdrops
+
+function resizeTmdbImageUrl(url, targetWidth) {
+  // Matches https://image.tmdb.org/t/p/<size>/<file> where <size> is
+  // "original" or "w\d+"; swaps it for the target width.
+  return url.replace(
+    /(https?:\/\/image\.tmdb\.org\/t\/p\/)(original|w\d+)(\/)/i,
+    (_match, prefix, _size, suffix) => `${prefix}w${targetWidth}${suffix}`
+  );
+}
+
+function resizeMetahubImageUrl(url, targetWidth) {
+  // Stremio metahub posters: .../poster/medium/... or /large/ or /small/.
+  // Prefer "medium" for grid cards to cut decode cost.
+  if (targetWidth <= 400) {
+    return url.replace(
+      /(\/poster\/)(large|medium|small)(\/)/i,
+      (_match, prefix, _size, suffix) => `${prefix}medium${suffix}`
+    );
+  }
+  return url;
+}
+
+export function resizeImageUrlForDisplay(value = "", { kind = "poster" } = {}) {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "";
+  }
+  const targetWidth = kind === "backdrop" ? BACKDROP_TARGET_WIDTH : POSTER_TARGET_WIDTH;
+  let resized = resizeTmdbImageUrl(normalized, targetWidth);
+  if (resized === normalized) {
+    resized = resizeMetahubImageUrl(normalized, targetWidth);
+  }
+  return resized;
+}
+
 export function normalizeImageUrl(value = "", options = {}) {
   return proxifyImageUrl(value, options);
 }
