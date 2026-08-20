@@ -21805,3 +21805,197 @@ html[data-card-depth="true"][data-card-depth-trailers="true"] .detail-trailer-ca
 .licenses-list section { margin-bottom: 2rem; }
 .licenses-list h2 { font-size: .95rem; letter-spacing: .12em; color: var(--color-text-secondary, #aaa); }
 .license-row { display: block; width: 100%; margin: .65rem 0; }
+/* =====================================================================
+   NEXT — Vertical "Who's watching?" profile selector
+   ---------------------------------------------------------------------
+   APPEND this block to the END of css/components.css.
+
+   It overrides the stock horizontal `.profile-grid` layout with a
+   vertical list, in the Next splash palette. It is written to win over
+   the base rules AND the legacy variants (.no-flex-gap / .no-css-math /
+   .legacy-tizen) by using equal-or-higher specificity and coming last
+   in the file. No existing rules are removed.
+
+   Pairs with the D-pad change in profileSelectionScreen.js
+   (moveProfileFocus rewritten for up/down). Both are required.
+   ===================================================================== */
+
+/* Palette tokens, scoped so they can't leak into the rest of the app */
+.profile-screen {
+  --next-bg-0: #05080f;
+  --next-bg-1: #0a1120;
+  --next-bg-2: #12203a;
+  --next-accent: #5b8cff;
+  --next-accent-soft: rgba(91, 140, 255, 0.16);
+  --next-accent-line: rgba(91, 140, 255, 0.5);
+  --next-text: #eef2fb;
+  --next-text-dim: rgba(238, 242, 251, 0.55);
+  --next-text-faint: rgba(238, 242, 251, 0.32);
+}
+
+/* The JS still sets an inline per-profile background tint via
+   buildBackgroundStyleFromColor(). We keep a calm splash gradient as the
+   base; the inline tint layers on top and is fine. If you'd rather force
+   the splash gradient regardless of profile color, uncomment !important. */
+.profile-main-layer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 4vh 0 8vh;
+  box-sizing: border-box;
+}
+
+/* Logo/wordmark up top, minimal */
+.profile-screen .profile-logo {
+  width: auto;
+  height: auto;
+  margin: 0 0 3.4vh;
+  /* If the stock <img> logo looks too heavy, hide it and rely on title:
+     display: none; */
+  max-height: 5vh;
+  opacity: 0.9;
+}
+
+.profile-screen .profile-title {
+  font-size: clamp(28px, 3.4vw, 60px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--next-text);
+  margin: 0 0 0.5vh;
+}
+
+.profile-screen .profile-subtitle {
+  font-size: clamp(14px, 1.25vw, 22px);
+  font-weight: 500;
+  color: var(--next-text-dim);
+  margin: 0 0 3vh;
+}
+
+/* THE KEY CHANGE: horizontal grid -> vertical list.
+   Overrides `.profile-grid` (and the compact variant) to stack. */
+.profile-screen .profile-grid,
+.profile-screen .profile-grid.profile-grid-compact {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: clamp(10px, 1.1vw, 18px);
+  width: min(30vw, 440px);
+  max-width: 92vw;
+  margin: 0;
+}
+
+/* Neutralize the legacy horizontal spacing so rows don't get pushed sideways */
+.no-flex-gap .profile-screen .profile-grid > *,
+.profile-screen .profile-grid > * {
+  margin-right: 0;
+  margin-bottom: 0;
+}
+
+/* Each card becomes a full-width horizontal row */
+.profile-screen .profile-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: clamp(12px, 1.4vw, 22px);
+  width: 100%;
+  min-width: 0;
+  padding: clamp(10px, 1vw, 16px) clamp(14px, 1.4vw, 22px);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-sizing: border-box;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+/* Avatar ring: keep round, sit at row-start (was stacked/centered) */
+.profile-screen .profile-avatar-ring {
+  position: relative;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.profile-screen .profile-avatar {
+  width: clamp(52px, 4.2vw, 68px);
+  height: clamp(52px, 4.2vw, 68px);
+  border-radius: 50%;
+  font-size: clamp(20px, 1.8vw, 30px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+/* Name + badge stack to the right of the avatar, left-aligned */
+.profile-screen .profile-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  text-align: left;
+  font-size: clamp(18px, 1.5vw, 28px);
+  font-weight: 600;
+  color: var(--next-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-screen .profile-badge {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: clamp(9px, 0.72vw, 12px);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--next-accent);
+  font-weight: 700;
+}
+
+/* The empty badge slot no longer needs to reserve vertical space */
+.profile-screen .profile-badge-slot {
+  display: none;
+}
+
+/* Add-profile row reads quieter */
+.profile-screen .profile-card-add .profile-avatar-add {
+  background: transparent;
+  border: 1.5px dashed rgba(255, 255, 255, 0.28);
+}
+
+/* FOCUS: whole-row treatment — accent rail, soft wash, slide, avatar ring.
+   Overrides any stock .profile-card.focused scale/glow. */
+.profile-screen .profile-card.focused,
+.profile-screen .profile-card.profile-focusable.focused {
+  background: linear-gradient(90deg, var(--next-accent-soft), rgba(255, 255, 255, 0.02));
+  border-color: var(--next-accent-line);
+  transform: translateX(6px);
+  box-shadow:
+    0 10px 34px rgba(0, 0, 0, 0.45),
+    inset 3px 0 0 var(--next-accent);
+}
+
+.profile-screen .profile-card.focused .profile-avatar {
+  box-shadow:
+    0 0 0 3px rgba(91, 140, 255, 0.35),
+    0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+.profile-screen .profile-hint {
+  color: var(--next-text-faint);
+  margin-top: 3vh;
+}
+
+/* Constrained TV runtimes: drop the transform/shadow motion but keep the
+   rail + wash so focus stays obvious without costing frames. */
+.performance-constrained .profile-screen .profile-card,
+.legacy-tizen .profile-screen .profile-card {
+  transition: background 0.15s ease, border-color 0.15s ease !important;
+}
+.performance-constrained .profile-screen .profile-card.focused,
+.legacy-tizen .profile-screen .profile-card.focused {
+  transform: none !important;
+  box-shadow: inset 3px 0 0 var(--next-accent) !important;
+}
