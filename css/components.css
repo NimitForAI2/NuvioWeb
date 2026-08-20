@@ -21805,197 +21805,327 @@ html[data-card-depth="true"][data-card-depth-trailers="true"] .detail-trailer-ca
 .licenses-list section { margin-bottom: 2rem; }
 .licenses-list h2 { font-size: .95rem; letter-spacing: .12em; color: var(--color-text-secondary, #aaa); }
 .license-row { display: block; width: 100%; margin: .65rem 0; }
+
 /* =====================================================================
-   NEXT — Vertical "Who's watching?" profile selector
+   NEXT — "Who's watching?" profile selector  ·  BARE AVATARS redesign
    ---------------------------------------------------------------------
-   APPEND this block to the END of css/components.css.
+   From-scratch, self-contained, UNIVERSAL (Tizen / webOS / browser).
+   Uses only flexbox + transform/opacity animation (compositor-friendly,
+   safe on weak TV WebViews). No dependency on legacy variant classes
+   (.no-flex-gap / .no-css-math / .legacy-tizen); this block overrides
+   them by coming last + using scoped specificity.
 
-   It overrides the stock horizontal `.profile-grid` layout with a
-   vertical list, in the Next splash palette. It is written to win over
-   the base rules AND the legacy variants (.no-flex-gap / .no-css-math /
-   .legacy-tizen) by using equal-or-higher specificity and coming last
-   in the file. No existing rules are removed.
-
-   Pairs with the D-pad change in profileSelectionScreen.js
-   (moveProfileFocus rewritten for up/down). Both are required.
+   APPEND to the END of css/components.css (replace any earlier NEXT block).
+   Pairs with profileSelectionScreen.js (bare-avatar render + horizontal
+   D-pad + entrance/selection animation hooks).
    ===================================================================== */
 
-/* Palette tokens, scoped so they can't leak into the rest of the app */
 .profile-screen {
-  --next-bg-0: #05080f;
-  --next-bg-1: #0a1120;
-  --next-bg-2: #12203a;
   --next-accent: #5b8cff;
-  --next-accent-soft: rgba(91, 140, 255, 0.16);
-  --next-accent-line: rgba(91, 140, 255, 0.5);
+  --next-accent-2: #8a5cf6;
+  --next-accent-soft: rgba(91, 140, 255, 0.18);
   --next-text: #eef2fb;
   --next-text-dim: rgba(238, 242, 251, 0.55);
-  --next-text-faint: rgba(238, 242, 251, 0.32);
+  --next-text-faint: rgba(238, 242, 251, 0.3);
+  --next-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* The JS still sets an inline per-profile background tint via
-   buildBackgroundStyleFromColor(). We keep a calm splash gradient as the
-   base; the inline tint layers on top and is fine. If you'd rather force
-   the splash gradient regardless of profile color, uncomment !important. */
-.profile-main-layer {
+/* Layer: top-anchored so a large title never clips off the top edge on a
+   65" panel; the avatar row is vertically centered in the space beneath. */
+.profile-screen .profile-main-layer {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 4vh 0 8vh;
+  padding: 6vh 4vw 10vh;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
-/* Logo/wordmark up top, minimal */
+/* Logo removed — the title leads. */
 .profile-screen .profile-logo {
-  width: auto;
-  height: auto;
-  margin: 0 0 3.4vh;
-  /* If the stock <img> logo looks too heavy, hide it and rely on title:
-     display: none; */
-  max-height: 5vh;
-  opacity: 0.9;
+  display: none !important;
 }
 
+/* Title + subtitle: lead-in animation, generous 10-foot sizing. */
 .profile-screen .profile-title {
-  font-size: clamp(28px, 3.4vw, 60px);
+  margin: 0 0 1.4vh;
+  font-size: clamp(40px, 3.8vw, 72px);
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
   color: var(--next-text);
-  margin: 0 0 0.5vh;
+  opacity: 0;
+  transform: translateY(16px);
+  animation: nextLeadIn 0.7s var(--next-ease) 0.05s forwards;
 }
-
 .profile-screen .profile-subtitle {
-  font-size: clamp(14px, 1.25vw, 22px);
+  margin: 0 0 6vh;
+  font-size: clamp(18px, 1.35vw, 26px);
   font-weight: 500;
+  line-height: 1.3;
   color: var(--next-text-dim);
-  margin: 0 0 3vh;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: nextLeadIn 0.7s var(--next-ease) 0.16s forwards;
 }
 
-/* THE KEY CHANGE: horizontal grid -> vertical list.
-   Overrides `.profile-grid` (and the compact variant) to stack. */
+/* ROW OF BARE AVATARS -------------------------------------------------- */
 .profile-screen .profile-grid,
 .profile-screen .profile-grid.profile-grid-compact {
   display: flex;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: clamp(10px, 1.1vw, 18px);
-  width: min(30vw, 440px);
-  max-width: 92vw;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(28px, 3vw, 60px);
+  width: auto;
+  max-width: 86vw;
   margin: 0;
 }
-
-/* Neutralize the legacy horizontal spacing so rows don't get pushed sideways */
-.no-flex-gap .profile-screen .profile-grid > *,
+/* kill any legacy horizontal margin spacing on children */
 .profile-screen .profile-grid > * {
-  margin-right: 0;
-  margin-bottom: 0;
+  margin: 0 !important;
 }
 
-/* Each card becomes a full-width horizontal row */
+/* Each profile: avatar on top, name beneath. No pill/box chrome. */
 .profile-screen .profile-card {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-  gap: clamp(12px, 1.4vw, 22px);
-  width: 100%;
-  min-width: 0;
-  padding: clamp(10px, 1vw, 16px) clamp(14px, 1.4vw, 22px);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-sizing: border-box;
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    transform 0.18s ease,
-    box-shadow 0.18s ease;
+  gap: clamp(10px, 1.4vh, 18px);
+  width: auto;
+  padding: 0;
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  /* staggered entrance; --next-i set inline per card by the JS */
+  opacity: 0;
+  transform: translateY(22px) scale(0.9);
+  animation: nextCardIn 0.6s var(--next-ease) forwards;
+  animation-delay: calc(0.28s + (var(--next-i, 0) * 0.07s));
 }
 
-/* Avatar ring: keep round, sit at row-start (was stacked/centered) */
+/* Avatar ring + avatar */
 .profile-screen .profile-avatar-ring {
   position: relative;
-  flex: 0 0 auto;
-  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-
 .profile-screen .profile-avatar {
-  width: clamp(52px, 4.2vw, 68px);
-  height: clamp(52px, 4.2vw, 68px);
+  position: relative;
+  width: clamp(96px, 8.5vw, 168px);
+  height: clamp(96px, 8.5vw, 168px);
   border-radius: 50%;
-  font-size: clamp(20px, 1.8vw, 30px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  font-size: clamp(38px, 3.6vw, 66px);
+  font-weight: 700;
+  color: #fff;
+  overflow: hidden;
+  border: 3px solid transparent;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  transition:
+    transform 0.28s var(--next-ease),
+    border-color 0.2s ease,
+    box-shadow 0.28s ease;
+}
+.profile-screen .profile-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-/* Name + badge stack to the right of the avatar, left-aligned */
+/* Glow bloom behind the avatar (only visible on focus) */
+.profile-screen .profile-avatar-ring::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150%;
+  height: 150%;
+  transform: translate(-50%, -50%) scale(0.6);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--next-accent-soft) 0%, rgba(0, 0, 0, 0) 65%);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s var(--next-ease);
+}
+
+/* Shine sweep element (added by CSS, animates once on focus) */
+.profile-screen .profile-avatar::after {
+  content: "";
+  position: absolute;
+  top: -30%;
+  bottom: -30%;
+  width: 45%;
+  left: -60%;
+  transform: skewX(-16deg);
+  background: linear-gradient(
+    105deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Name */
 .profile-screen .profile-name {
-  flex: 1 1 auto;
-  min-width: 0;
   margin: 0;
-  text-align: left;
-  font-size: clamp(18px, 1.5vw, 28px);
+  max-width: clamp(120px, 10vw, 200px);
+  text-align: center;
+  font-size: clamp(20px, 1.6vw, 30px);
   font-weight: 600;
-  color: var(--next-text);
+  color: var(--next-text-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transform: translateY(0);
+  transition:
+    color 0.2s ease,
+    transform 0.28s var(--next-ease);
 }
 
+/* Primary badge sits under the name, quiet until focus */
 .profile-screen .profile-badge {
-  flex: 0 0 auto;
-  margin: 0;
-  font-size: clamp(9px, 0.72vw, 12px);
-  letter-spacing: 0.16em;
+  margin: 2px 0 0;
+  font-size: clamp(11px, 0.8vw, 14px);
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--next-accent);
   font-weight: 700;
+  opacity: 0.72;
 }
-
-/* The empty badge slot no longer needs to reserve vertical space */
 .profile-screen .profile-badge-slot {
   display: none;
 }
 
-/* Add-profile row reads quieter */
-.profile-screen .profile-card-add .profile-avatar-add {
-  background: transparent;
-  border: 1.5px dashed rgba(255, 255, 255, 0.28);
+/* Primary star dot on the avatar */
+.profile-screen .profile-primary-dot {
+  position: absolute;
+  right: 4%;
+  bottom: 4%;
+  width: 26%;
+  height: 26%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(140deg, var(--next-accent), var(--next-accent-2));
+  color: #fff;
+  font-size: 0.5em;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
 }
 
-/* FOCUS: whole-row treatment — accent rail, soft wash, slide, avatar ring.
-   Overrides any stock .profile-card.focused scale/glow. */
-.profile-screen .profile-card.focused,
-.profile-screen .profile-card.profile-focusable.focused {
-  background: linear-gradient(90deg, var(--next-accent-soft), rgba(255, 255, 255, 0.02));
-  border-color: var(--next-accent-line);
-  transform: translateX(6px);
-  box-shadow:
-    0 10px 34px rgba(0, 0, 0, 0.45),
-    inset 3px 0 0 var(--next-accent);
+/* Add-profile: dashed ring that rotates gently on focus */
+.profile-screen .profile-avatar-add {
+  background: transparent !important;
+  border: 2.5px dashed rgba(255, 255, 255, 0.3);
+  position: relative;
+}
+.profile-screen .profile-avatar-add::before {
+  content: "+";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--next-text-dim);
+  font-weight: 300;
+  font-size: 1.1em;
 }
 
+/* ---------- FOCUS STATE ---------- */
 .profile-screen .profile-card.focused .profile-avatar {
+  transform: scale(1.12);
+  border-color: var(--next-accent);
   box-shadow:
-    0 0 0 3px rgba(91, 140, 255, 0.35),
-    0 6px 18px rgba(0, 0, 0, 0.4);
+    0 0 0 6px var(--next-accent-soft),
+    0 16px 40px rgba(0, 0, 0, 0.5);
+  /* breathing pulse while it stays focused (runs after the scale settles) */
+  animation: nextBreathe 3.2s ease-in-out 0.4s infinite;
+}
+.profile-screen .profile-card.focused .profile-avatar-ring::before {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.profile-screen .profile-card.focused .profile-avatar::after {
+  animation: nextShine 0.9s var(--next-ease) forwards;
+}
+.profile-screen .profile-card.focused .profile-name {
+  color: var(--next-text);
+  transform: translateY(3px);
+}
+.profile-screen .profile-card.focused .profile-avatar-add {
+  border-color: var(--next-accent);
+  animation: nextSpin 8s linear infinite;
 }
 
+/* Selection punch (JS toggles .is-activating on click/OK) */
+.profile-screen .profile-card.is-activating .profile-avatar {
+  animation: nextPunch 0.42s var(--next-ease) forwards;
+}
+
+/* Hint pinned to the bottom edge */
 .profile-screen .profile-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 6vh;
+  transform: translateX(-50%);
+  margin: 0;
+  white-space: nowrap;
+  font-size: clamp(16px, 1.15vw, 22px);
   color: var(--next-text-faint);
-  margin-top: 3vh;
+  opacity: 0;
+  animation: nextLeadIn 0.7s var(--next-ease) 0.5s forwards;
 }
 
-/* Constrained TV runtimes: drop the transform/shadow motion but keep the
-   rail + wash so focus stays obvious without costing frames. */
-.performance-constrained .profile-screen .profile-card,
-.legacy-tizen .profile-screen .profile-card {
-  transition: background 0.15s ease, border-color 0.15s ease !important;
+/* ---------- KEYFRAMES ---------- */
+@keyframes nextLeadIn {
+  to { opacity: 1; transform: translateY(0); }
 }
-.performance-constrained .profile-screen .profile-card.focused,
-.legacy-tizen .profile-screen .profile-card.focused {
-  transform: none !important;
-  box-shadow: inset 3px 0 0 var(--next-accent) !important;
+@keyframes nextCardIn {
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes nextBreathe {
+  0%, 100% { box-shadow: 0 0 0 6px var(--next-accent-soft), 0 16px 40px rgba(0,0,0,0.5); }
+  50% { box-shadow: 0 0 0 10px var(--next-accent-soft), 0 16px 46px rgba(0,0,0,0.55); }
+}
+@keyframes nextShine {
+  0% { left: -60%; opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { left: 130%; opacity: 0; }
+}
+@keyframes nextSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes nextPunch {
+  0% { transform: scale(1.12); }
+  40% { transform: scale(0.94); }
+  100% { transform: scale(1.12); }
+}
+
+/* ---------- Constrained TV fallback ----------
+   Weak Tizen/webOS panels: keep the focus ring + glow (cheap) but drop the
+   infinite breathing + shine so we never chew frames during navigation.
+   The entrance stagger stays (runs once, compositor-only). */
+.performance-constrained .profile-screen .profile-card.focused .profile-avatar,
+.legacy-tizen .profile-screen .profile-card.focused .profile-avatar {
+  animation: none !important;
+}
+.performance-constrained .profile-screen .profile-card.focused .profile-avatar::after,
+.legacy-tizen .profile-screen .profile-card.focused .profile-avatar::after {
+  animation: none !important;
+  opacity: 0 !important;
+}
+.performance-constrained .profile-screen .profile-card.focused .profile-avatar-add,
+.legacy-tizen .profile-screen .profile-card.focused .profile-avatar-add {
+  animation: none !important;
 }
