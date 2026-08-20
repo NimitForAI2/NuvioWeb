@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Next launcher tile: solid dark square (no alpha), forward-chevron mark.
+       Export as a flat 24-bit RGB PNG at 512x512 for the Samsung launcher icon.
+       Samsung's squircle mask crops the corners, so the mark sits well inside
+       the safe area. Background is solid #0e1626 (matches the app bg family). -->
+  <rect width="512" height="512" fill="#0e1626"/>
+  <!-- 120-unit mark box scaled 2.4x (=288px) and centered: translate (256-144)=112 -->
+  <g transform="translate(112,112) scale(2.4)" fill="none"
+     stroke="#eaf1ff" stroke-width="13" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 32 L58 60 L30 88"/>
+    <path d="M62 32 L90 60 L62 88" opacity="0.55"/>
+  </g>
+</svg>

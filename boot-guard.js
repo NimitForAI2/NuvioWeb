@@ -19,12 +19,12 @@
   // The splash may begin fading once the app is ready AND at least SPLASH_MIN_MS
   // has elapsed (so a fast boot still shows a complete moment), and is always
   // gone by SPLASH_MAX_MS regardless.
-  var SPLASH_WARMUP_MS = 4000; // quiet buffer before the reveal animation starts
+  var SPLASH_WARMUP_MS = 2000; // quiet buffer before the reveal animation starts
   // Floor must clear the END of the reveal, not just the warm-up: the reveal
-  // starts at ~4s and its last beat (signature rise) finishes ~6.7s, so fading
-  // may only begin at 6800ms. Otherwise a fast boot would cut the reveal off
-  // right as it starts — the exact problem on weak panels we're avoiding.
-  var SPLASH_MIN_MS = 6800;    // floor: earliest the splash may fade once ready
+  // starts at ~2s and its last beat (signature rise) finishes ~3.55s. The floor
+  // is held to 5500ms to let the completed mark + signature sit on screen for a
+  // beat before fading. A fast boot still shows the full sequence + hold.
+  var SPLASH_MIN_MS = 5500;    // floor: earliest the splash may fade once ready
   var SPLASH_MAX_MS = 8000;    // ceiling: hard cap, splash never outlives this
   var SPLASH_FADE_MS = 620;
   var COMPATIBILITY_INFO_TIMEOUT_MS = 1500;
@@ -92,7 +92,8 @@
       var dLogo = (w + 0.05).toFixed(2) + "s";
       var dBloom = (w + 0.15).toFixed(2) + "s";
       var dBreathe = (w + 1.2).toFixed(2) + "s";
-      var dRim = (w + 1.0).toFixed(2) + "s";
+      var dChevron1 = (w + 0.35).toFixed(2) + "s";
+      var dChevron2 = (w + 0.57).toFixed(2) + "s";
       var dSweep = (w + 0.95).toFixed(2) + "s";
       var dSign = (w + 1.55).toFixed(2) + "s";
       style.textContent =
@@ -117,20 +118,22 @@
         "border-radius:50%;opacity:0;pointer-events:none;" +
         "background:radial-gradient(circle,rgba(88,150,255,.38) 0%,rgba(60,110,220,.16) 38%,rgba(0,0,0,0) 68%);" +
         "animation:nuvioGlowBloom 1s ease " + dBloom + " forwards,nuvioGlowBreathe 3.4s ease-in-out " + dBreathe + " infinite;}" +
-        // logo wrapper clips the moving shine to the icon box
-        "#" + SPLASH_ID + " .nuvio-splash-logo{position:relative;width:30vw;max-width:380px;" +
-        "min-width:200px;overflow:hidden;border-radius:26px;opacity:0;transform:scale(.82);" +
-        "box-shadow:0 24px 80px rgba(0,0,0,.55);" +
+        // mark wrapper: inline SVG chevrons (crisp at 4K, no PNG dependency).
+        // The whole mark fades + scale-settles; the chevrons then stroke on.
+        "#" + SPLASH_ID + " .nuvio-splash-logo{position:relative;width:22vw;max-width:280px;" +
+        "min-width:150px;opacity:0;transform:scale(.82);" +
         "animation:nuvioLogoReveal 1.05s cubic-bezier(.16,1,.3,1) " + dLogo + " forwards;}" +
-        "#" + SPLASH_ID + " .nuvio-splash-logo img{display:block;width:100%;height:auto;}" +
-        // rim-light that fades in along the icon edge after it settles
-        "#" + SPLASH_ID + " .nuvio-splash-logo:after{content:'';position:absolute;inset:0;" +
-        "border-radius:26px;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);" +
-        "opacity:0;animation:nuvioRim 1s ease " + dRim + " forwards;}" +
-        // single deliberate diagonal sweep across the icon (one pass, not a loop)
-        "#" + SPLASH_ID + " .nuvio-splash-shine{position:absolute;top:-25%;bottom:-25%;width:48%;" +
-        "left:-70%;transform:skewX(-16deg);opacity:0;" +
-        "background:linear-gradient(105deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.72) 50%,rgba(255,255,255,0) 100%);" +
+        "#" + SPLASH_ID + " .nuvio-splash-logo svg{display:block;width:100%;height:auto;" +
+        "filter:drop-shadow(0 10px 34px rgba(0,0,0,.5));}" +
+        // chevron draw-on: dasharray set inline per path; offset animates to 0
+        "#" + SPLASH_ID + " .nuvio-chevron{stroke-dasharray:180;stroke-dashoffset:180;" +
+        "animation:nuvioDraw .9s cubic-bezier(.5,.02,.3,1) forwards;}" +
+        "#" + SPLASH_ID + " .nuvio-chevron.c1{animation-delay:" + dChevron1 + ";}" +
+        "#" + SPLASH_ID + " .nuvio-chevron.c2{animation-delay:" + dChevron2 + ";}" +
+        // single deliberate diagonal sweep across the mark (one pass, not a loop)
+        "#" + SPLASH_ID + " .nuvio-splash-shine{position:absolute;top:-30%;bottom:-30%;width:44%;" +
+        "left:-70%;transform:skewX(-16deg);opacity:0;pointer-events:none;mix-blend-mode:screen;" +
+        "background:linear-gradient(105deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.5) 50%,rgba(255,255,255,0) 100%);" +
         "animation:nuvioSweep 1.35s cubic-bezier(.5,.02,.3,1) " + dSweep + " forwards;}" +
         // signature rises + tightens beneath the mark
         "#" + SPLASH_ID + " .nuvio-splash-sign{position:absolute;left:50%;bottom:12vh;transform:translate(-50%,14px);" +
@@ -143,10 +146,10 @@
         "50%{opacity:.9;transform:translate(-50%,-50%) scale(1.04);}}" +
         "@keyframes nuvioLogoReveal{0%{opacity:0;transform:scale(.82);}" +
         "60%{opacity:1;transform:scale(1.03);}100%{opacity:1;transform:scale(1);}}" +
+        "@keyframes nuvioDraw{to{stroke-dashoffset:0;}}" +
         "@keyframes nuvioGlowBloom{0%{opacity:0;transform:translate(-50%,-50%) scale(.6);}" +
         "100%{opacity:1;transform:translate(-50%,-50%) scale(1);}}" +
         "@keyframes nuvioGlowBreathe{0%,100%{opacity:.85;}50%{opacity:1;}}" +
-        "@keyframes nuvioRim{to{opacity:1;}}" +
         "@keyframes nuvioSweep{0%{left:-70%;opacity:0;}12%{opacity:1;}88%{opacity:1;}100%{left:130%;opacity:0;}}" +
         "@keyframes nuvioSignRise{0%{opacity:0;transform:translate(-50%,14px);letter-spacing:.16em;}" +
         "100%{opacity:1;transform:translate(-50%,0);letter-spacing:.06em;}}";
@@ -157,17 +160,20 @@
       splash.setAttribute("role", "img");
       splash.setAttribute("aria-label", "Next");
       // The warm-up glow keeps the screen alive during the asset buffer; then the
-      // real app icon reveals in, a glow blooms, one shine sweeps, the signature
-      // rises. Plain <img> (no CSS mask) so it renders on older Tizen WebViews
-      // too. If the image is missing the wrapper simply shows the dark background
-      // + glow — never a broken image.
+      // mark reveals: it scale-settles in, the two forward chevrons stroke on, and
+      // a single shine sweeps across. The mark is inline SVG (no PNG dependency),
+      // so it renders crisp at 4K and can never show a broken image.
       splash.innerHTML =
         '<div class="nuvio-splash-stage">' +
         '<div class="nuvio-splash-warm"></div>' +
         '<div class="nuvio-splash-glow"></div>' +
         '<div class="nuvio-splash-logo">' +
-        '<img src="assets/images/tizenIcon.png" alt="Next" ' +
-        'onerror="this.style.display=\'none\'" />' +
+        '<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+        '<path class="nuvio-chevron c1" d="M30 32 L58 60 L30 88" stroke="#f2f6ff" ' +
+        'stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path class="nuvio-chevron c2" d="M62 32 L90 60 L62 88" stroke="#f2f6ff" ' +
+        'stroke-width="13" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>' +
+        "</svg>" +
         '<div class="nuvio-splash-shine"></div>' +
         "</div>" +
         "</div>" +

@@ -15,11 +15,18 @@ and installs normally.
     paging (`appendNewCards()`) instead of rebuilding the whole grid.
 
 - **Included here (boot splash):**
-  - `boot-guard.js` — adds an animated boot splash (app icon with a shimmer
-    sweep) plus a "Built by Nimit" signature at the bottom-right. Also carries
-    the "Next" rename in its user-facing strings (splash label, error title,
-    unsupported-TV message). The splash loads `assets/images/tizenIcon.png` and
-    self-dismisses on `guard.ready()`, window load, or an 8s hard cap.
+  - `boot-guard.js` — animated boot splash with the "Next" forward-chevron mark
+    drawn as **inline SVG** (no PNG dependency, crisp at 4K), plus the "Built by
+    Nimit" signature. ~4s warm-up glow, then the mark scale-settles in, the two
+    chevrons stroke on, and a shine sweeps across; fades once ready (≥6.8s floor,
+    8s hard cap). Carries the "Next" rename in its user-facing strings.
+
+- **Included here (launcher icon art):**
+  - `next-icon.svg` — the forward-chevron mark on a solid `#0e1626` square.
+    Export this to a flat 24-bit RGB PNG at 512×512 (no alpha) and replace
+    `assets/images/tizenIcon.png` in the repo to change the Samsung launcher
+    tile. RGB-only + solid background avoids Samsung's alpha rejection on tile
+    icons. (The splash no longer depends on this PNG — only the launcher does.)
 
 - **Included here (app rename → "Next", display name only):**
   - `scripts/package-tizen.mjs` — `appName = "Next"` (drives the Tizen `<name>`
