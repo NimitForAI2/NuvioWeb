@@ -18,6 +18,26 @@ const PROFILE_PIN_LENGTH = 4;
 const PROFILE_PIN_OPEN_MS = 320;
 const PROFILE_PIN_CLOSE_MS = 240;
 const PROFILE_BACKGROUND_ANIMATION_MS = 520;
+// Static per-slot background palette. Each profile gets a fixed color by its
+// position in the list (1st = blue, 2nd = red, ...), independent of its avatar
+// color, so the screen background is stable across launches. The add-profile
+// tile and any overflow past the palette length fall back to a neutral slate.
+const PROFILE_BACKGROUND_PALETTE = [
+  "#3b7bff", // blue
+  "#e0564e", // red
+  "#8a5cf6", // violet
+  "#20b58a", // teal
+  "#e8913a", // amber
+  "#d1477f"  // magenta
+];
+const PROFILE_BACKGROUND_ADD_COLOR = "#555555";
+function getProfileBackgroundColorForIndex(index) {
+  const i = Number(index);
+  if (!Number.isInteger(i) || i < 0) {
+    return PROFILE_BACKGROUND_PALETTE[0];
+  }
+  return PROFILE_BACKGROUND_PALETTE[i % PROFILE_BACKGROUND_PALETTE.length];
+}
 const PROFILE_PIN_TEXT = {
   set: "Set PIN",
   change: "Change PIN",
@@ -450,9 +470,6 @@ export const ProfileSelectionScreen = {
     const subtitle = this.isManagementMode
       ? t("profile_manage_subtitle", {}, "Select a profile to edit, switch, or create a new one")
       : t("profile_selection_subtitle", {}, "Select a profile to continue");
-    const hint = this.isManagementMode
-      ? t("profile_manage_hint", {}, "Select a profile to manage")
-      : t("profile_selection_hint", {}, "Hold to manage profile");
     const renderedPinState = this.getRenderedPinOverlayState();
     const isPinActive = Boolean(renderedPinState);
     const pinScreenPhaseClass = isPinActive
@@ -472,8 +489,6 @@ export const ProfileSelectionScreen = {
             ${visibleProfiles.map((profile, index) => this.renderProfileCard(profile, index)).join("")}
             ${canAddProfile ? this.renderAddProfileCard(visibleProfiles.length) : ""}
           </div>
-
-          <p class="profile-hint">${escapeHtml(hint)}</p>
         </div>
         ${this.renderPinOverlay()}
       </div>
@@ -484,8 +499,11 @@ export const ProfileSelectionScreen = {
     this.bindEvents();
     if (renderedPinState) {
       const pinProfile = this.getPinOverlayProfile();
-      if (pinProfile?.avatarColorHex) {
-        this.updateBackground(pinProfile.avatarColorHex);
+      if (pinProfile) {
+        const slotIndex = this.getVisibleProfiles().findIndex(
+          (entry) => String(entry.id) === String(pinProfile.id)
+        );
+        this.updateBackground(getProfileBackgroundColorForIndex(slotIndex));
       }
     }
     this.restoreFocus();
@@ -509,10 +527,8 @@ export const ProfileSelectionScreen = {
                 : escapeHtml(getProfileInitial(profile.name))
             }
           </div>
-          ${profile.isPrimary ? `<span class="profile-primary-dot" aria-hidden="true">&#9733;</span>` : ""}
         </div>
         <div class="profile-name">${escapeHtml(profile.name)}</div>
-        ${profile.isPrimary ? `<div class="profile-badge">${escapeHtml(t("profile_selection_primary_badge", {}, "PRIMARY"))}</div>` : `<div class="profile-badge-slot" aria-hidden="true"></div>`}
       </div>
     `;
   },
@@ -903,11 +919,14 @@ export const ProfileSelectionScreen = {
       const profile = this.getProfileById(profileId);
       if (profile) {
         this.lastProfileFocusKey = `profile:${profile.id}`;
-        this.updateBackground(profile.avatarColorHex || getDefaultProfileColor());
+        const slotIndex = this.getVisibleProfiles().findIndex(
+          (entry) => String(entry.id) === String(profile.id)
+        );
+        this.updateBackground(getProfileBackgroundColorForIndex(slotIndex));
       }
     } else if (profileId === "add") {
       this.lastProfileFocusKey = "profile:add";
-      this.updateBackground("#555555");
+      this.updateBackground(PROFILE_BACKGROUND_ADD_COLOR);
     }
 
     if (avatarId && this.editorState) {
