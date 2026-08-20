@@ -1200,8 +1200,11 @@ export const ProfileSelectionScreen = {
     if (!direction) {
       return false;
     }
-    if (direction === "up" || direction === "down") {
-      return false;
+    // Vertical list: the profiles stack top-to-bottom, so Up/Down walk the
+    // list and Left/Right are inert (swallowed so focus doesn't jump away).
+    if (direction === "left" || direction === "right") {
+      event?.preventDefault?.();
+      return true;
     }
 
     const cards = Array.from(this.container?.querySelectorAll(".profile-card") || []);
@@ -1218,7 +1221,7 @@ export const ProfileSelectionScreen = {
       return false;
     }
 
-    const nextIndex = direction === "left" ? currentIndex - 1 : currentIndex + 1;
+    const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
     if (nextIndex < 0 || nextIndex >= cards.length) {
       event?.preventDefault?.();
       return true;
