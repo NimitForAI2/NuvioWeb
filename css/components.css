@@ -21992,37 +21992,6 @@ html[data-card-depth="true"][data-card-depth-trailers="true"] .detail-trailer-ca
     transform 0.28s var(--next-ease);
 }
 
-/* Primary badge sits under the name, quiet until focus */
-.profile-screen .profile-badge {
-  margin: 2px 0 0;
-  font-size: clamp(11px, 0.8vw, 14px);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--next-accent);
-  font-weight: 700;
-  opacity: 0.72;
-}
-.profile-screen .profile-badge-slot {
-  display: none;
-}
-
-/* Primary star dot on the avatar */
-.profile-screen .profile-primary-dot {
-  position: absolute;
-  right: 4%;
-  bottom: 4%;
-  width: 26%;
-  height: 26%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: linear-gradient(140deg, var(--next-accent), var(--next-accent-2));
-  color: #fff;
-  font-size: 0.5em;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
-}
-
 /* Add-profile: dashed ring that rotates gently on focus */
 .profile-screen .profile-avatar-add {
   background: transparent !important;
@@ -22072,20 +22041,6 @@ html[data-card-depth="true"][data-card-depth-trailers="true"] .detail-trailer-ca
   animation: nextPunch 0.42s var(--next-ease) forwards;
 }
 
-/* Hint pinned to the bottom edge */
-.profile-screen .profile-hint {
-  position: absolute;
-  left: 50%;
-  bottom: 6vh;
-  transform: translateX(-50%);
-  margin: 0;
-  white-space: nowrap;
-  font-size: clamp(16px, 1.15vw, 22px);
-  color: var(--next-text-faint);
-  opacity: 0;
-  animation: nextLeadIn 0.7s var(--next-ease) 0.5s forwards;
-}
-
 /* ---------- KEYFRAMES ---------- */
 @keyframes nextLeadIn {
   to { opacity: 1; transform: translateY(0); }
@@ -22128,4 +22083,19 @@ html[data-card-depth="true"][data-card-depth-trailers="true"] .detail-trailer-ca
 .performance-constrained .profile-screen .profile-card.focused .profile-avatar-add,
 .legacy-tizen .profile-screen .profile-card.focused .profile-avatar-add {
   animation: none !important;
+}
+
+/* Cast avatar initials fallback (shown when no photo is available) */
+.movie-cast-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.movie-cast-initial {
+  font-size: 84px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  user-select: none;
 }
