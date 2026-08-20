@@ -469,8 +469,8 @@ export const ProfileSelectionScreen = {
           <p class="profile-subtitle">${escapeHtml(subtitle)}</p>
 
           <div class="${gridClass}" id="profileGrid" data-profile-item-count="${totalItems}">
-            ${visibleProfiles.map((profile) => this.renderProfileCard(profile)).join("")}
-            ${canAddProfile ? this.renderAddProfileCard() : ""}
+            ${visibleProfiles.map((profile, index) => this.renderProfileCard(profile, index)).join("")}
+            ${canAddProfile ? this.renderAddProfileCard(visibleProfiles.length) : ""}
           </div>
 
           <p class="profile-hint">${escapeHtml(hint)}</p>
@@ -491,7 +491,7 @@ export const ProfileSelectionScreen = {
     this.restoreFocus();
   },
 
-  renderProfileCard(profile) {
+  renderProfileCard(profile, index = 0) {
     const avatarUrl = resolveProfileAvatarUrl(profile, (avatarId) =>
       this.getAvatarImageUrl(avatarId)
     );
@@ -499,6 +499,7 @@ export const ProfileSelectionScreen = {
       <div class="profile-card profile-focusable focusable"
            data-profile-id="${escapeHtml(profile.id)}"
            data-focus-key="profile:${escapeHtml(profile.id)}"
+           style="--next-i:${Number(index) || 0}"
            tabindex="0">
         <div class="profile-avatar-ring">
           <div class="profile-avatar" style="background:${escapeHtml(profile.avatarColorHex || getDefaultProfileColor())}">
@@ -516,11 +517,12 @@ export const ProfileSelectionScreen = {
     `;
   },
 
-  renderAddProfileCard() {
+  renderAddProfileCard(index = 0) {
     return `
       <div class="profile-card profile-card-add profile-focusable focusable"
            data-profile-id="add"
            data-focus-key="profile:add"
+           style="--next-i:${Number(index) || 0}"
            tabindex="0">
         <div class="profile-avatar-ring">
           <div class="profile-avatar profile-avatar-add" aria-hidden="true"></div>
@@ -1200,9 +1202,9 @@ export const ProfileSelectionScreen = {
     if (!direction) {
       return false;
     }
-    // Vertical list: the profiles stack top-to-bottom, so Up/Down walk the
-    // list and Left/Right are inert (swallowed so focus doesn't jump away).
-    if (direction === "left" || direction === "right") {
+    // Bare-avatar layout is a horizontal row: Left/Right walk the avatars,
+    // Up/Down are inert (swallowed so focus doesn't jump out of the row).
+    if (direction === "up" || direction === "down") {
       event?.preventDefault?.();
       return true;
     }
@@ -1221,7 +1223,7 @@ export const ProfileSelectionScreen = {
       return false;
     }
 
-    const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    const nextIndex = direction === "left" ? currentIndex - 1 : currentIndex + 1;
     if (nextIndex < 0 || nextIndex >= cards.length) {
       event?.preventDefault?.();
       return true;
